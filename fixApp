@@ -1,0 +1,189 @@
+Al incluir el ejemplo dado y ya habiendo instalado la dependencia como se indica vs code me da los siguientes errores. Me ayudas a corregirlos y me explicas porque aparecen. [{
+    "resource": "/c:/Users/Estudiante/Downloads/Cursos y certificados/React/ReactNative/Prueba-document-picker/App.tsx",
+    "owner": "typescript",
+    "code": "2345",
+    "severity": 8,
+    "message": "Argument of type 'DocumentPickerResponse' is not assignable to parameter of type 'SetStateAction<null>'.\n  Type 'DocumentPickerResponse' provides no match for the signature '(prevState: null): null'.",
+    "source": "ts",
+    "startLineNumber": 21,
+    "startColumn": 23,
+    "endLineNumber": 21,
+    "endColumn": 27, 
+    "origin": "extHost1"
+}]  [{
+    "resource": "/c:/Users/Estudiante/Downloads/Cursos y certificados/React/ReactNative/Prueba-document-picker/App.tsx",
+    "owner": "typescript",
+    "code": "2339",
+    "severity": 8,
+    "message": "Property 'name' does not exist on type 'never'.",
+    "source": "ts",
+    "startLineNumber": 46,
+    "startColumn": 41,
+    "endLineNumber": 46,
+    "endColumn": 45,
+    "origin": "extHost1"
+}] [{
+    "resource": "/c:/Users/Estudiante/Downloads/Cursos y certificados/React/ReactNative/Prueba-document-picker/App.tsx",
+    "owner": "typescript",
+    "code": "2339",
+    "severity": 8,
+    "message": "Property 'type' does not exist on type 'never'.",
+    "source": "ts",
+    "startLineNumber": 47,
+    "startColumn": 39,
+    "endLineNumber": 47,
+    "endColumn": 43,
+    "origin": "extHost1"
+}]  [{
+    "resource": "/c:/Users/Estudiante/Downloads/Cursos y certificados/React/ReactNative/Prueba-document-picker/App.tsx",
+    "owner": "typescript",
+    "code": "2339",
+    "severity": 8,
+    "message": "Property 'size' does not exist on type 'never'.",
+    "source": "ts",
+    "startLineNumber": 48,
+    "startColumn": 41,
+    "endLineNumber": 48,
+    "endColumn": 45,
+    "origin": "extHost1"
+}]
+
+
+
+¡Claro que sí\
+
+! Estos errores son típicos cuando trabajas con **TypeScript** (indicado por `App.tsx` y el `owner: typescript`) y una librería que devuelve datos con una estructura específica.
+
+Los errores que ves (`2345` y `2339`) se deben a que **TypeScript no sabe de antemano qué tipo de dato vas a almacenar** en tu estado (`selectedFile`).
+
+Aquí tienes la explicación y el código corregido.
+
+-----
+
+## 💡 Explicación de los Errores
+
+### 1\. Error `2345`: Incompatibilidad de Tipos en `setSelectedFile`
+
+> `Argument of type 'DocumentPickerResponse' is not assignable to parameter of type 'SetStateAction<null>'.`
+
+  * **Línea problemática (asumo):** `setSelectedFile(file);`
+  * **Problema:** Al inicializar el estado así: `const [selectedFile, setSelectedFile] = useState(null);`, TypeScript infiere que `selectedFile` **solo puede ser `null`** (ya que ese es el valor inicial).
+  * Cuando intentas llamar a `setSelectedFile(file)`, donde `file` es de tipo `DocumentPickerResponse` (un objeto con `name`, `uri`, `size`, etc.), TypeScript te dice: "¡Espera\! Solo puedo aceptar `null` aquí, no un objeto `DocumentPickerResponse`."
+
+### 2\. Errores `2339`: Propiedades Inexistentes (`name`, `type`, `size`)
+
+> `Property 'name' does not exist on type 'never'.`
+
+  * **Líneas problemáticas (asumo):** Donde intentas acceder a `selectedFile.name`, `selectedFile.type`, etc.
+  * **Problema:** Dado que en el punto 1 TypeScript determinó que `selectedFile` era solo `null`, en el resto del código, cuando intentas acceder a sus propiedades (`name`, `size`, etc.), TypeScript te advierte que la propiedad `name` **no existe en el tipo `null`**. El tipo `never` es lo que TypeScript asigna a valores a los que nunca se debería acceder, lo que refuerza la idea de que no confía en el tipo de dato.
+
+-----
+
+## ✅ Solución con TypeScript
+
+Para corregir esto, debes **especificar explícitamente el tipo de dato** que puede contener tu estado `selectedFile`. Puede ser de dos tipos: **`null`** (cuando no hay archivo seleccionado) o el tipo de respuesta del *document picker*.
+
+### 1\. Obtener el Tipo de Dato Correcto
+
+Debes importar el tipo de dato que la librería `react-native-document-picker` devuelve. Este tipo se llama `DocumentPickerResponse` (o a veces `types.DocumentPickerResponse`).
+
+```javascript
+// Importa el tipo específico
+import DocumentPicker, { DocumentPickerResponse } from 'react-native-document-picker'; 
+```
+
+### 2\. Tipar el Estado
+
+Usa la sintaxis de genéricos de `useState` para decirle a TypeScript que el estado puede ser `DocumentPickerResponse` **o** `null`.
+
+```javascript
+// Antes (mal tipado):
+// const [selectedFile, setSelectedFile] = useState(null);
+
+// Ahora (bien tipado):
+const [selectedFile, setSelectedFile] = useState<DocumentPickerResponse | null>(null);
+```
+
+### 3\. Ajustar la Lógica
+
+Dado que `DocumentPicker.pick` con `allowMultiSelection: false` devuelve un *array* de resultados, y tú estás tomando el primer elemento (`res[0]`), este elemento es de tipo `DocumentPickerResponse`.
+
+Tu lógica para asignar el archivo está bien, pero para prevenir errores de *runtime* (aunque TypeScript ya te ayuda), asegúrate de que el resultado exista.
+
+-----
+
+## 🛠️ Código Corregido
+
+Aquí está el componente `FileSelector` corregido con la tipificación adecuada:
+
+```tsx
+import DocumentPicker, { DocumentPickerResponse } from 'react-native-document-picker';
+import React, { useState } from 'react';
+import { Button, Text, View, StyleSheet } from 'react-native';
+
+// Paso 1: Tipar el estado correctamente
+const FileSelector = () => {
+  // El estado puede contener un objeto DocumentPickerResponse O null
+  const [selectedFile, setSelectedFile] = useState<DocumentPickerResponse | null>(null);
+
+  const handleFileSelection = async () => {
+    try {
+      const res = await DocumentPicker.pick({
+        type: [DocumentPicker.types.allFiles],
+        allowMultiSelection: false,
+      });
+
+      // Asegúrate de que res no esté vacío (aunque pick suele devolver un array de 1)
+      if (res.length > 0) {
+        // Paso 2: La asignación es ahora correcta porque el tipo coincide
+        setSelectedFile(res[0]); 
+      }
+      
+    } catch (err) {
+      if (DocumentPicker.isCancel(err)) {
+        console.log('Selección de archivo cancelada');
+      } else {
+        console.error('Error al seleccionar archivo:', err);
+      }
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Button title="Seleccionar Archivo" onPress={handleFileSelection} />
+      
+      {/* Paso 3: Usar 'selectedFile &&' para asegurar que NO es null */}
+      {selectedFile && (
+        <View style={styles.fileInfo}>
+          <Text style={styles.text}>✅ Archivo seleccionado:</Text>
+          <Text style={styles.text}>Nombre: **{selectedFile.name}**</Text>
+          <Text style={styles.text}>Tipo: **{selectedFile.type}**</Text>
+          <Text style={styles.text}>Tamaño: **{selectedFile.size}** bytes</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        padding: 20,
+    },
+    fileInfo: {
+        marginTop: 15,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        padding: 10,
+        borderRadius: 5,
+        backgroundColor: '#f9f9f9',
+    },
+    text: {
+        fontSize: 14,
+        marginBottom: 3,
+    }
+});
+
+export default FileSelector;
+```
+
+Con estos cambios, le has dado a TypeScript la información necesaria sobre los tipos de datos, eliminando todos los errores de tipado.
